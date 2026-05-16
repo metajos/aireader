@@ -4,17 +4,26 @@ from functools import lru_cache
 from typing import Optional
 
 from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import HTMLResponse, FileResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse, FileResponse, StreamingResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel
 
 from reader3 import Book, BookMetadata, ChapterContent, TOCEntry
+
+import db
+import claude_client as cc
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 
 # Where are the book folders located?
 BOOKS_DIR = "."
+
+
+@app.on_event("startup")
+def _startup() -> None:
+    db.init()
+
 
 @lru_cache(maxsize=10)
 def load_book_cached(folder_name: str) -> Optional[Book]:
@@ -34,16 +43,15 @@ def load_book_cached(folder_name: str) -> Optional[Book]:
         print(f"Error loading book {folder_name}: {e}")
         return None
 
+
 @app.get("/", response_class=HTMLResponse)
 async def library_view(request: Request):
     """Lists all available processed books."""
     books = []
 
-    # Scan directory for folders ending in '_data' that have a book.pkl
     if os.path.exists(BOOKS_DIR):
         for item in os.listdir(BOOKS_DIR):
             if item.endswith("_data") and os.path.isdir(item):
-                # Try to load it to get the title
                 book = load_book_cached(item)
                 if book:
                     books.append({
@@ -55,10 +63,12 @@ async def library_view(request: Request):
 
     return templates.TemplateResponse("library.html", {"request": request, "books": books})
 
+
 @app.get("/read/{book_id}", response_class=HTMLResponse)
-async def redirect_to_first_chapter(book_id: str):
+async def redirect_to_first_chapter(request: Request, book_id: str):
     """Helper to just go to chapter 0."""
-    return await read_chapter(book_id=book_id, chapter_index=0)
+    return await read_chapter(request=request, book_id=book_id, chapter_index=0)
+
 
 @app.get("/read/{book_id}/{chapter_index}", response_class=HTMLResponse)
 async def read_chapter(request: Request, book_id: str, chapter_index: int):
@@ -72,7 +82,6 @@ async def read_chapter(request: Request, book_id: str, chapter_index: int):
 
     current_chapter = book.spine[chapter_index]
 
-    # Calculate Prev/Next links
     prev_idx = chapter_index - 1 if chapter_index > 0 else None
     next_idx = chapter_index + 1 if chapter_index < len(book.spine) - 1 else None
 
@@ -86,14 +95,9 @@ async def read_chapter(request: Request, book_id: str, chapter_index: int):
         "next_idx": next_idx
     })
 
+
 @app.get("/read/{book_id}/images/{image_name}")
 async def serve_image(book_id: str, image_name: str):
-    """
-    Serves images specifically for a book.
-    The HTML contains <img src="images/pic.jpg">.
-    The browser resolves this to /read/{book_id}/images/pic.jpg.
-    """
-    # Security check: ensure book_id is clean
     safe_book_id = os.path.basename(book_id)
     safe_image_name = os.path.basename(image_name)
 
@@ -103,6 +107,204 @@ async def serve_image(book_id: str, image_name: str):
         raise HTTPException(status_code=404, detail="Image not found")
 
     return FileResponse(img_path)
+
+
+# =====================================================================
+# Highlights + translations
+# =====================================================================
+
+class CreateHighlight(BaseModel):
+    book_id: str
+    chapter_index: int
+    kind: str  # 'translate' | 'chat'
+    text: str
+    start_hint: str = ""
+    end_hint: str = ""
+
+
+@app.post("/api/highlights")
+async def api_create_highlight(payload: CreateHighlight):
+    if payload.kind not in ("translate", "chat"):
+        raise HTTPException(status_code=400, detail="invalid kind")
+    text = payload.text.strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="empty text")
+
+    hid = db.create_highlight(
+        payload.book_id, payload.chapter_index, payload.kind,
+        text, payload.start_hint, payload.end_hint,
+    )
+
+    translation_payload = None
+    if payload.kind == "translate":
+        prompt, schema, system = cc.translate_sentence_prompt(text)
+        try:
+            result = await cc.call_json(prompt, schema, system)
+        except cc.ClaudeError as e:
+            db.delete_highlight(hid)
+            raise HTTPException(status_code=502, detail=f"translation failed: {e}")
+        db.save_translation(hid, result["translation"], result.get("context", ""))
+        translation_payload = {
+            "sentence_en": result["translation"],
+            "context_note": result.get("context", ""),
+        }
+
+    return {
+        "id": hid,
+        "kind": payload.kind,
+        "text": text,
+        "translation": translation_payload,
+    }
+
+
+@app.get("/api/highlights/{highlight_id}/words")
+async def api_highlight_words(highlight_id: int):
+    h = db.get_highlight(highlight_id)
+    if not h:
+        raise HTTPException(status_code=404, detail="highlight not found")
+    if h["kind"] != "translate":
+        raise HTTPException(status_code=400, detail="not a translate highlight")
+
+    tr = db.get_translation(highlight_id)
+    if not tr:
+        raise HTTPException(status_code=409, detail="translation not yet ready")
+
+    if tr.get("words"):
+        return {"words": tr["words"]}
+
+    prompt, schema, system = cc.word_by_word_prompt(h["text"], tr["sentence_en"])
+    try:
+        result = await cc.call_json(prompt, schema, system)
+    except cc.ClaudeError as e:
+        raise HTTPException(status_code=502, detail=f"word breakdown failed: {e}")
+    words = result.get("words", [])
+    db.save_words(highlight_id, words)
+    return {"words": words}
+
+
+@app.get("/api/highlights/{book_id}/{chapter_index}")
+async def api_list_highlights(book_id: str, chapter_index: int):
+    return {"highlights": db.list_highlights(book_id, chapter_index)}
+
+
+@app.delete("/api/highlights/{highlight_id}")
+async def api_delete_highlight(highlight_id: int):
+    db.delete_highlight(highlight_id)
+    return {"ok": True}
+
+
+# =====================================================================
+# Chat (streaming)
+# =====================================================================
+
+class ChatMessage(BaseModel):
+    message: str
+
+
+@app.get("/api/chat/{highlight_id}")
+async def api_chat_history(highlight_id: int):
+    h = db.get_highlight(highlight_id)
+    if not h:
+        raise HTTPException(status_code=404, detail="highlight not found")
+    return {
+        "passage": h["text"],
+        "messages": db.list_chat_messages(highlight_id),
+    }
+
+
+@app.post("/api/chat/{highlight_id}")
+async def api_chat_send(highlight_id: int, payload: ChatMessage):
+    h = db.get_highlight(highlight_id)
+    if not h:
+        raise HTTPException(status_code=404, detail="highlight not found")
+
+    user_msg = payload.message.strip()
+    if not user_msg:
+        raise HTTPException(status_code=400, detail="empty message")
+
+    db.add_chat_message(highlight_id, "user", user_msg)
+    messages = [{"role": m["role"], "content": m["content"]}
+                for m in db.list_chat_messages(highlight_id)]
+
+    system = (
+        cc.CHAT_SYSTEM
+        + "\n\nPASSAGE BEING DISCUSSED (French):\n«"
+        + h["text"] + "»"
+    )
+
+    async def event_stream():
+        collected: list[str] = []
+        try:
+            async for chunk in cc.stream_chat(messages, system):
+                collected.append(chunk)
+                yield f"data: {_sse_escape(chunk)}\n\n"
+        except Exception as e:
+            yield f"event: error\ndata: {str(e)[:300]}\n\n"
+        finally:
+            full = "".join(collected).strip()
+            if full:
+                db.add_chat_message(highlight_id, "assistant", full)
+            yield "event: done\ndata: end\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+def _sse_escape(s: str) -> str:
+    # SSE separates events with blank lines; literal \n inside data must be escaped
+    # as multiple data: lines. Simpler here: JSON-encode the chunk.
+    import json as _json
+    return _json.dumps(s, ensure_ascii=False)
+
+
+# =====================================================================
+# Vocab + SRS
+# =====================================================================
+
+class AddVocab(BaseModel):
+    fr: str
+    en: str
+    context_sentence: str = ""
+    source_book_id: Optional[str] = None
+
+
+@app.post("/api/vocab")
+async def api_add_vocab(payload: AddVocab):
+    fr = payload.fr.strip()
+    en = payload.en.strip()
+    if not fr or not en:
+        raise HTTPException(status_code=400, detail="fr and en required")
+    vid = db.add_vocab(fr, en, payload.context_sentence.strip(), payload.source_book_id)
+    return {"id": vid}
+
+
+@app.get("/api/vocab/due")
+async def api_vocab_due():
+    return {"cards": db.list_due_vocab(), "stats": db.vocab_stats()}
+
+
+@app.get("/api/vocab")
+async def api_vocab_list():
+    return {"cards": db.list_all_vocab(), "stats": db.vocab_stats()}
+
+
+class ReviewVocab(BaseModel):
+    grade: int
+
+
+@app.post("/api/vocab/{vocab_id}/review")
+async def api_review_vocab(vocab_id: int, payload: ReviewVocab):
+    if payload.grade not in (0, 1, 2, 3):
+        raise HTTPException(status_code=400, detail="grade must be 0..3")
+    card = db.review_vocab(vocab_id, payload.grade)
+    if card is None:
+        raise HTTPException(status_code=404, detail="vocab not found")
+    return {"card": card}
+
+
+@app.get("/study", response_class=HTMLResponse)
+async def study_view(request: Request):
+    return templates.TemplateResponse("study.html", {"request": request})
+
 
 if __name__ == "__main__":
     import uvicorn

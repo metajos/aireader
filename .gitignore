@@ -12,3 +12,5 @@ wheels/
 # Custom
 *_data/
 *.epub
+reader_data.db
+reader_data.db-journal

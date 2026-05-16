@@ -8,34 +8,106 @@
         /* Layout */
         body { margin: 0; padding: 0; display: flex; height: 100vh; overflow: hidden; font-family: "Georgia", serif; background: #fff; }
 
-        /* Sidebar */
-        #sidebar { width: 300px; background: #f8f9fa; border-right: 1px solid #e9ecef; overflow-y: auto; padding: 20px; flex-shrink: 0; }
+        /* Sidebar (TOC) */
+        #sidebar { width: 280px; background: #f8f9fa; border-right: 1px solid #e9ecef; overflow-y: auto; padding: 20px; flex-shrink: 0; }
         .nav-header { font-family: -apple-system, sans-serif; font-weight: bold; color: #495057; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #dee2e6; }
         .nav-home { display: block; margin-bottom: 20px; color: #3498db; text-decoration: none; font-family: -apple-system, sans-serif; font-size: 0.9em; }
-
-        /* TOC Tree */
         ul.toc-list { list-style: none; padding-left: 0; margin: 0; }
-        ul.toc-list ul { padding-left: 20px; } /* Indent children */
+        ul.toc-list ul { padding-left: 20px; }
         li.toc-item { margin-bottom: 8px; }
         a.toc-link { text-decoration: none; color: #495057; font-size: 0.95em; display: block; padding: 4px 0; line-height: 1.4; }
         a.toc-link:hover { color: #000; text-decoration: underline; }
         a.toc-link.active { color: #d63384; font-weight: bold; }
 
-        /* Main Content */
+        /* Main reading area */
         #main { flex-grow: 1; overflow-y: auto; position: relative; scroll-behavior: smooth; }
-        .content-container { max-width: 700px; margin: 0 auto; padding: 60px 40px; line-height: 1.8; font-size: 1.15em; color: #212529; }
+        .content-container { max-width: 700px; margin: 0 auto; padding: 60px 40px 120px; font-size: 1.15em; color: #212529; position: relative; }
 
-        /* Content Styling (Basic normalization for the book HTML) */
+        /* IMPORTANT: roomy line-height is permanent so adding/removing translations causes
+           zero layout shift. The pre-allocated gap absorbs the tiny translation text. */
+        .book-content { line-height: 2.6; }
+
         .book-content img { max-width: 100%; height: auto; display: block; margin: 20px auto; }
-        .book-content h1, .book-content h2, .book-content h3 { font-family: -apple-system, sans-serif; margin-top: 1.5em; color: #333; }
+        .book-content h1, .book-content h2, .book-content h3 { font-family: -apple-system, sans-serif; margin-top: 1.5em; color: #333; line-height: 1.4; }
         .book-content p { margin-bottom: 1.5em; text-align: justify; }
 
-        /* Navigation Footer */
-        .chapter-nav { display: flex; justify-content: space-between; margin-top: 60px; padding-top: 20px; border-top: 1px solid #eee; font-family: -apple-system, sans-serif; }
+        /* Highlights */
+        .hl-translate { background: rgba(255, 230, 90, 0.45); border-radius: 2px; cursor: pointer; }
+        .hl-translate.active { background: rgba(255, 200, 0, 0.6); }
+        .hl-chat { background: rgba(140, 200, 255, 0.45); border-radius: 2px; cursor: pointer; }
+        .hl-chat.active { background: rgba(80, 170, 255, 0.6); }
+
+        /* Translation overlay layer */
+        .trans-layer { position: absolute; top: 0; left: 0; right: 0; height: 0; pointer-events: none; }
+        .trans-item {
+            position: absolute;
+            font-size: 0.55em;
+            line-height: 1.1;
+            color: #777;
+            max-width: 36em;
+            white-space: normal;
+            pointer-events: none;
+            font-family: -apple-system, sans-serif;
+            letter-spacing: 0.01em;
+        }
+        .trans-item.loading::after { content: "translating…"; color: #bbb; font-style: italic; }
+
+        /* Chapter nav */
+        .chapter-nav { display: flex; justify-content: space-between; margin-top: 60px; padding-top: 20px; border-top: 1px solid #eee; font-family: -apple-system, sans-serif; line-height: 1.4; }
         .nav-btn { text-decoration: none; color: #3498db; font-weight: bold; padding: 10px 20px; border: 1px solid #3498db; border-radius: 4px; transition: all 0.2s; }
         .nav-btn:hover { background: #3498db; color: white; }
         .nav-btn.disabled { opacity: 0.5; pointer-events: none; border-color: #ccc; color: #ccc; }
 
+        /* Tool toolbar */
+        #toolbar { position: fixed; top: 16px; right: 16px; z-index: 50; display: flex; gap: 6px; background: #fff; border: 1px solid #e0e0e0; border-radius: 999px; padding: 5px 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); font-family: -apple-system, sans-serif; }
+        .tool-btn { border: none; background: transparent; padding: 6px 14px; border-radius: 999px; cursor: pointer; font-size: 0.85em; color: #555; transition: background 0.1s; }
+        .tool-btn:hover { background: #f0f0f0; }
+        .tool-btn.active { background: #212529; color: #fff; }
+        .tool-btn[data-tool="translate"].active { background: #f4b400; color: #000; }
+        .tool-btn[data-tool="chat"].active { background: #1a73e8; color: #fff; }
+        #study-link { text-decoration: none; padding: 6px 14px; border-radius: 999px; font-size: 0.85em; color: #555; }
+        #study-link:hover { background: #f0f0f0; }
+
+        body.tool-translate .book-content { caret-color: #f4b400; }
+        body.tool-chat .book-content { caret-color: #1a73e8; }
+
+        /* Side panel */
+        #panel { position: fixed; top: 0; right: -400px; width: 380px; height: 100vh; background: #fff; border-left: 1px solid #e0e0e0; box-shadow: -2px 0 12px rgba(0,0,0,0.08); transition: right 0.2s ease; z-index: 40; display: flex; flex-direction: column; font-family: -apple-system, sans-serif; }
+        #panel.open { right: 0; }
+        .panel-header { padding: 14px 16px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .panel-title { font-weight: bold; font-size: 0.95em; }
+        .panel-close { background: transparent; border: none; font-size: 1.5em; cursor: pointer; color: #888; padding: 0 8px; }
+        .panel-body { flex: 1; overflow-y: auto; padding: 14px 16px; }
+        .panel-passage { font-family: "Georgia", serif; font-size: 1em; color: #222; line-height: 1.5; margin-bottom: 8px; }
+        .panel-trans { font-size: 0.9em; color: #555; line-height: 1.4; margin-bottom: 10px; }
+        .panel-context { font-size: 0.85em; color: #666; background: #f8f9fa; padding: 8px 10px; border-radius: 4px; margin-bottom: 16px; line-height: 1.45; }
+        .panel-section-title { font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.08em; color: #888; margin: 16px 0 8px; }
+        .panel-delete { background: transparent; border: 1px solid #eee; color: #c62828; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8em; margin-top: 12px; }
+        .panel-delete:hover { background: #fdecea; }
+
+        /* Word table */
+        .word-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; padding: 6px 0; border-bottom: 1px solid #f3f3f3; align-items: baseline; font-size: 0.9em; }
+        .word-fr { font-weight: 600; color: #222; }
+        .word-en { color: #555; }
+        .word-note { grid-column: 1 / -1; font-size: 0.75em; color: #999; padding-bottom: 4px; }
+        .word-add { background: #f4b400; color: #000; border: none; border-radius: 4px; padding: 3px 8px; cursor: pointer; font-size: 0.8em; }
+        .word-add:hover { background: #e0a300; }
+        .word-add.added { background: #d4edda; color: #155724; cursor: default; }
+        .panel-loading { color: #888; font-style: italic; padding: 12px 0; }
+
+        /* Chat */
+        .chat-messages { display: flex; flex-direction: column; gap: 10px; }
+        .chat-msg { padding: 8px 12px; border-radius: 10px; max-width: 90%; font-size: 0.9em; line-height: 1.45; white-space: pre-wrap; word-wrap: break-word; }
+        .chat-msg.user { align-self: flex-end; background: #e3f2fd; }
+        .chat-msg.assistant { align-self: flex-start; background: #f5f5f5; }
+        .chat-input-row { display: flex; gap: 6px; padding: 10px 12px; border-top: 1px solid #eee; }
+        .chat-input { flex: 1; border: 1px solid #ddd; border-radius: 6px; padding: 7px 10px; font-size: 0.9em; font-family: inherit; resize: none; min-height: 38px; max-height: 120px; }
+        .chat-send { background: #1a73e8; color: #fff; border: none; border-radius: 6px; padding: 7px 14px; cursor: pointer; font-size: 0.9em; }
+        .chat-send:disabled { background: #c4c4c4; cursor: default; }
+
+        /* Toast */
+        #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 8px 14px; border-radius: 6px; font-size: 0.85em; opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 100; font-family: -apple-system, sans-serif; }
+        #toast.show { opacity: 0.92; }
     </style>
 </head>
 <body>
@@ -45,44 +117,15 @@
         <a href="/" class="nav-home">← Back to Library</a>
         <div class="nav-header">{{ book.metadata.title }}</div>
 
-        <!-- Recursive Macro for TOC -->
         {% macro render_toc(items) %}
             <ul class="toc-list">
             {% for item in items %}
                 <li class="toc-item">
-                    <!--
-                        Matching Logic:
-                        If the TOC item filename matches the current chapter filename, mark active.
-                        Ideally we match spine indices, but Reader 3 TOC maps to filenames.
-                        We use a simple hash matching logic here.
-                    -->
                     {% set is_active = current_chapter.href == item.file_href %}
-
-                    <!--
-                       We need to find which linear chapter index (0, 1, 2) corresponds
-                       to this TOC entry file.
-                       Since that's hard to calculate in Jinja, we just link to the
-                       file anchor. BUT, to make our linear navigation work, we
-                       rely on the fact that the user is currently reading 'chapter_index'.
-
-                       Ideally, clicking a TOC link should find the 'index' of that file.
-                       For simplicity in this version: We link to the 'href' (filename)
-                       and let JavaScript or Backend handle it?
-
-                       Actually, let's just link to the file. The browser interprets #anchors.
-                       However, our router uses /read/book/INDEX.
-
-                       SIMPLE FIX: We won't link the TOC to the route index in this simple version
-                       unless we build a map. We will visually show structure,
-                       but rely on "Previous/Next" for linear reading.
-
-                       BETTER FIX: Use JavaScript to match filenames.
-                    -->
-                    <a href="#" onclick="findAndGo('{{ item.file_href }}')"
+                    <a href="#" onclick="findAndGo('{{ item.file_href }}'); return false;"
                        class="toc-link {% if is_active %}active{% endif %}">
                         {{ item.title }}
                     </a>
-
                     {% if item.children %}
                         {{ render_toc(item.children) }}
                     {% endif %}
@@ -94,12 +137,21 @@
         {{ render_toc(book.toc) }}
     </div>
 
+    <!-- TOOLBAR -->
+    <div id="toolbar">
+        <button class="tool-btn active" data-tool="read">Read</button>
+        <button class="tool-btn" data-tool="translate">Translate</button>
+        <button class="tool-btn" data-tool="chat">Chat</button>
+        <a id="study-link" href="/study" target="_blank">Study →</a>
+    </div>
+
     <!-- MAIN CONTENT -->
     <div id="main">
         <div class="content-container">
             <div class="book-content">
                 {{ current_chapter.content | safe }}
             </div>
+            <div class="trans-layer"></div>
 
             <div class="chapter-nav">
                 {% if prev_idx is not none %}
@@ -107,11 +159,9 @@
                 {% else %}
                     <span class="nav-btn disabled">← Previous</span>
                 {% endif %}
-
                 <span style="color: #999; padding: 10px;">
                     Section {{ chapter_index + 1 }} of {{ book.spine|length }}
                 </span>
-
                 {% if next_idx is not none %}
                     <a href="/read/{{ book_id }}/{{ next_idx }}" class="nav-btn">Next →</a>
                 {% else %}
@@ -121,34 +171,545 @@
         </div>
     </div>
 
+    <!-- SIDE PANEL -->
+    <div id="panel">
+        <div class="panel-header">
+            <span class="panel-title" id="panel-title">Highlight</span>
+            <button class="panel-close" onclick="closePanel()">×</button>
+        </div>
+        <div class="panel-body" id="panel-body"></div>
+        <div id="chat-input-area" style="display:none;">
+            <div class="chat-input-row">
+                <textarea class="chat-input" id="chat-input" placeholder="Ask about this passage…" rows="1"></textarea>
+                <button class="chat-send" id="chat-send">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast"></div>
+
     <script>
-        // Helper to map TOC filenames to Spine Indices
-        // Pass the spine data from python to JS
+        const BOOK_ID = "{{ book_id }}";
+        const CHAPTER_INDEX = {{ chapter_index }};
+
+        // ---------- TOC navigation (unchanged) ----------
         const spineMap = {
             {% for ch in book.spine %}
             "{{ ch.href }}": {{ ch.order }},
             {% endfor %}
         };
-
         function findAndGo(filename) {
-            // The TOC usually has specific filenames e.g. "text/part001.html"
-            // Sometimes it has anchors "text/part001.html#header"
-            // We strip the anchor to find the page index
             const cleanFile = filename.split('#')[0];
-            const anchor = filename.split('#')[1];
-
             const idx = spineMap[cleanFile];
-
             if (idx !== undefined) {
-                let url = "/read/{{ book_id }}/" + idx;
-                // If there was an anchor, we could try to scroll to it,
-                // but simple page loads often lose anchor position without extra JS.
-                // Let's just go to the page.
-                window.location.href = url;
-            } else {
-                console.log("Could not find index for", filename);
+                window.location.href = "/read/{{ book_id }}/" + idx;
             }
         }
+
+        // ---------- Toolbar / active tool ----------
+        let activeTool = 'read';
+        document.querySelectorAll('.tool-btn').forEach(btn => {
+            btn.addEventListener('click', () => setTool(btn.dataset.tool));
+        });
+        function setTool(tool) {
+            activeTool = tool;
+            document.querySelectorAll('.tool-btn').forEach(b =>
+                b.classList.toggle('active', b.dataset.tool === tool));
+            document.body.classList.remove('tool-read', 'tool-translate', 'tool-chat');
+            document.body.classList.add('tool-' + tool);
+        }
+        setTool('read');
+
+        // ---------- Toast ----------
+        let toastTimer = null;
+        function toast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.classList.add('show');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+        }
+
+        // ---------- Selection handler ----------
+        const bookContent = document.querySelector('.book-content');
+
+        document.addEventListener('mouseup', async (ev) => {
+            // Ignore selections inside the panel or toolbar
+            if (ev.target.closest('#panel') || ev.target.closest('#toolbar')) return;
+            if (activeTool === 'read') return;
+
+            const sel = window.getSelection();
+            if (!sel || sel.isCollapsed) return;
+            const text = sel.toString().trim();
+            if (!text) return;
+
+            const range = sel.getRangeAt(0);
+
+            // Both ends must be inside .book-content
+            if (!bookContent.contains(range.startContainer) || !bookContent.contains(range.endContainer)) {
+                return;
+            }
+            // Reject if it crosses block boundaries
+            const startBlock = closestBlock(range.startContainer);
+            const endBlock = closestBlock(range.endContainer);
+            if (startBlock !== endBlock) {
+                toast('Highlight within a single paragraph');
+                sel.removeAllRanges();
+                return;
+            }
+            // Reject if it includes any existing highlight
+            if (rangeOverlapsExistingHighlight(range)) {
+                toast('Overlaps an existing highlight');
+                sel.removeAllRanges();
+                return;
+            }
+
+            const { startHint, endHint } = computeHints(range, bookContent);
+
+            sel.removeAllRanges();
+
+            // Optimistic: wrap right away so the user sees feedback
+            const tempSpan = document.createElement('span');
+            tempSpan.className = activeTool === 'translate' ? 'hl-translate' : 'hl-chat';
+            tempSpan.dataset.id = 'pending-' + Math.random().toString(36).slice(2);
+            tempSpan.appendChild(range.extractContents());
+            range.insertNode(tempSpan);
+            mergeAdjacentTextNodes(tempSpan.parentNode);
+
+            let placeholder = null;
+            if (activeTool === 'translate') {
+                placeholder = addTranslationOverlay(tempSpan.dataset.id, '', true);
+                requestAnimationFrame(repositionTranslations);
+            }
+
+            try {
+                const resp = await fetch('/api/highlights', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        book_id: BOOK_ID,
+                        chapter_index: CHAPTER_INDEX,
+                        kind: activeTool,
+                        text,
+                        start_hint: startHint,
+                        end_hint: endHint,
+                    }),
+                });
+                if (!resp.ok) {
+                    const errText = await resp.text();
+                    throw new Error(errText || resp.statusText);
+                }
+                const data = await resp.json();
+                tempSpan.dataset.id = String(data.id);
+
+                if (activeTool === 'translate' && data.translation) {
+                    if (placeholder) {
+                        placeholder.classList.remove('loading');
+                        placeholder.textContent = data.translation.sentence_en;
+                        placeholder.dataset.transFor = String(data.id);
+                    }
+                    repositionTranslations();
+                } else if (activeTool === 'chat') {
+                    openPanelForHighlight(tempSpan);
+                }
+            } catch (e) {
+                toast('Failed: ' + e.message);
+                if (placeholder) placeholder.remove();
+                // Unwrap the optimistic span
+                unwrapSpan(tempSpan);
+            }
+        });
+
+        function closestBlock(node) {
+            let n = node;
+            if (n.nodeType === 3) n = n.parentElement;
+            while (n && n !== bookContent) {
+                const d = getComputedStyle(n).display;
+                if (d === 'block' || d === 'list-item' || d === 'table-cell' || d === 'flex' || d === 'grid') return n;
+                n = n.parentElement;
+            }
+            return bookContent;
+        }
+        function rangeOverlapsExistingHighlight(range) {
+            const hls = bookContent.querySelectorAll('.hl-translate, .hl-chat');
+            for (const h of hls) {
+                const r = document.createRange();
+                r.selectNodeContents(h);
+                if (range.compareBoundaryPoints(Range.END_TO_START, r) < 0 &&
+                    range.compareBoundaryPoints(Range.START_TO_END, r) > 0) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        function computeHints(range, root) {
+            const flat = flattenTextNodes(root);
+            // Build pre-range and post-range text by cloning ranges
+            const preRange = document.createRange();
+            preRange.setStart(flat.firstNode, 0);
+            preRange.setEnd(range.startContainer, range.startOffset);
+            const postRange = document.createRange();
+            postRange.setStart(range.endContainer, range.endOffset);
+            postRange.setEnd(flat.lastNode, flat.lastNode.textContent.length);
+            const pre = preRange.toString();
+            const post = postRange.toString();
+            return {
+                startHint: pre.slice(-30),
+                endHint: post.slice(0, 30),
+            };
+        }
+        function flattenTextNodes(root) {
+            const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+            const nodes = [];
+            const starts = [];
+            let flat = '';
+            let n;
+            while ((n = walker.nextNode())) {
+                starts.push(flat.length);
+                nodes.push(n);
+                flat += n.textContent;
+            }
+            return {
+                flat, nodes, starts,
+                firstNode: nodes[0],
+                lastNode: nodes[nodes.length - 1],
+            };
+        }
+        function mergeAdjacentTextNodes(el) {
+            if (el && el.normalize) el.normalize();
+        }
+        function unwrapSpan(span) {
+            const parent = span.parentNode;
+            while (span.firstChild) parent.insertBefore(span.firstChild, span);
+            parent.removeChild(span);
+            parent.normalize && parent.normalize();
+        }
+
+        // ---------- Translation overlay (no-layout-shift) ----------
+        const layer = document.querySelector('.trans-layer');
+
+        function addTranslationOverlay(highlightId, text, loading) {
+            let el = layer.querySelector(`[data-trans-for="${CSS.escape(highlightId)}"]`);
+            if (!el) {
+                el = document.createElement('span');
+                el.className = 'trans-item';
+                el.dataset.transFor = String(highlightId);
+                layer.appendChild(el);
+            }
+            if (loading) el.classList.add('loading'); else el.classList.remove('loading');
+            if (!loading) el.textContent = text;
+            else el.textContent = '';
+            return el;
+        }
+
+        function repositionTranslations() {
+            const containerRect = document.querySelector('.content-container').getBoundingClientRect();
+            document.querySelectorAll('.hl-translate').forEach(hl => {
+                const id = hl.dataset.id;
+                const trans = layer.querySelector(`[data-trans-for="${CSS.escape(id)}"]`);
+                if (!trans) return;
+                const rects = hl.getClientRects();
+                if (!rects.length) return;
+                const last = rects[rects.length - 1];
+                trans.style.left = (last.left - containerRect.left) + 'px';
+                trans.style.top = (last.bottom - containerRect.top + 2) + 'px';
+                trans.style.maxWidth = Math.max(140, containerRect.right - last.left - 8) + 'px';
+            });
+        }
+        window.addEventListener('resize', () => requestAnimationFrame(repositionTranslations));
+
+        // ---------- Click highlight → open panel ----------
+        bookContent.addEventListener('click', (ev) => {
+            const hl = ev.target.closest('.hl-translate, .hl-chat');
+            if (!hl) return;
+            ev.stopPropagation();
+            openPanelForHighlight(hl);
+        });
+
+        // ---------- Panel ----------
+        const panel = document.getElementById('panel');
+        const panelBody = document.getElementById('panel-body');
+        const panelTitle = document.getElementById('panel-title');
+        const chatInputArea = document.getElementById('chat-input-area');
+        let activeHighlight = null;
+        let activeChatStream = null;
+
+        function openPanelForHighlight(hlSpan) {
+            // Mark active
+            document.querySelectorAll('.hl-translate.active, .hl-chat.active')
+                .forEach(e => e.classList.remove('active'));
+            hlSpan.classList.add('active');
+            activeHighlight = hlSpan;
+
+            const id = hlSpan.dataset.id;
+            const kind = hlSpan.classList.contains('hl-translate') ? 'translate' : 'chat';
+            if (kind === 'translate') {
+                renderTranslatePanel(id, hlSpan.textContent);
+            } else {
+                renderChatPanel(id, hlSpan.textContent);
+            }
+            panel.classList.add('open');
+        }
+        function closePanel() {
+            panel.classList.remove('open');
+            chatInputArea.style.display = 'none';
+            if (activeHighlight) activeHighlight.classList.remove('active');
+            activeHighlight = null;
+            if (activeChatStream) { activeChatStream.close(); activeChatStream = null; }
+        }
+
+        async function renderTranslatePanel(id, sourceText) {
+            panelTitle.textContent = 'Translation';
+            chatInputArea.style.display = 'none';
+            panelBody.innerHTML = `
+                <div class="panel-passage">${escapeHtml(sourceText)}</div>
+                <div class="panel-trans" id="panel-trans-en">…</div>
+                <div class="panel-context" id="panel-context" style="display:none;"></div>
+                <div class="panel-section-title">Word by word</div>
+                <div id="word-list" class="panel-loading">Loading…</div>
+                <button class="panel-delete" onclick="deleteHighlight(${id})">Delete highlight</button>
+            `;
+            // Get the translation + context (it should already be saved server-side)
+            const resp = await fetch(`/api/highlights/${BOOK_ID}/${CHAPTER_INDEX}`);
+            const data = await resp.json();
+            const h = (data.highlights || []).find(x => String(x.id) === String(id));
+            if (h) {
+                document.getElementById('panel-trans-en').textContent = h.sentence_en || '';
+                if (h.context_note) {
+                    const cx = document.getElementById('panel-context');
+                    cx.style.display = 'block';
+                    cx.textContent = h.context_note;
+                }
+            }
+
+            // Lazy word breakdown
+            try {
+                const wresp = await fetch(`/api/highlights/${id}/words`);
+                if (!wresp.ok) throw new Error('words failed');
+                const wdata = await wresp.json();
+                renderWordList(wdata.words || [], sourceText);
+            } catch (e) {
+                document.getElementById('word-list').textContent = 'Word breakdown unavailable.';
+            }
+        }
+
+        function renderWordList(words, contextSentence) {
+            const wl = document.getElementById('word-list');
+            wl.classList.remove('panel-loading');
+            if (!words.length) { wl.textContent = 'No words.'; return; }
+            wl.innerHTML = '';
+            words.forEach((w, i) => {
+                const row = document.createElement('div');
+                row.className = 'word-row';
+                row.innerHTML = `
+                    <span class="word-fr">${escapeHtml(w.fr)}</span>
+                    <span class="word-en">${escapeHtml(w.en)}</span>
+                    <button class="word-add" data-idx="${i}">+ vocab</button>
+                    ${w.note ? `<span class="word-note">${escapeHtml(w.note)}</span>` : ''}
+                `;
+                row.querySelector('.word-add').addEventListener('click', async (ev) => {
+                    const btn = ev.currentTarget;
+                    btn.disabled = true;
+                    try {
+                        const r = await fetch('/api/vocab', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                fr: w.fr, en: w.en,
+                                context_sentence: contextSentence,
+                                source_book_id: BOOK_ID,
+                            }),
+                        });
+                        if (!r.ok) throw new Error('add failed');
+                        btn.textContent = '✓ added';
+                        btn.classList.add('added');
+                    } catch (e) {
+                        btn.disabled = false;
+                        toast('Add failed');
+                    }
+                });
+                wl.appendChild(row);
+            });
+        }
+
+        async function deleteHighlight(id) {
+            if (!confirm('Delete this highlight?')) return;
+            await fetch(`/api/highlights/${id}`, { method: 'DELETE' });
+            // Remove from DOM
+            const span = document.querySelector(`.hl-translate[data-id="${CSS.escape(String(id))}"], .hl-chat[data-id="${CSS.escape(String(id))}"]`);
+            if (span) {
+                const trans = layer.querySelector(`[data-trans-for="${CSS.escape(String(id))}"]`);
+                if (trans) trans.remove();
+                unwrapSpan(span);
+            }
+            closePanel();
+        }
+
+        // ---------- Chat panel ----------
+        async function renderChatPanel(id, passageText) {
+            panelTitle.textContent = 'Chat about passage';
+            chatInputArea.style.display = 'block';
+            panelBody.innerHTML = `
+                <div class="panel-passage">${escapeHtml(passageText)}</div>
+                <div class="panel-section-title">Conversation</div>
+                <div class="chat-messages" id="chat-messages"></div>
+                <button class="panel-delete" onclick="deleteHighlight(${id})" style="margin-top:18px;">Delete highlight</button>
+            `;
+            // Load history
+            const r = await fetch(`/api/chat/${id}`);
+            const data = await r.json();
+            const messagesEl = document.getElementById('chat-messages');
+            (data.messages || []).forEach(m => appendChatMessage(messagesEl, m.role, m.content));
+
+            const input = document.getElementById('chat-input');
+            const sendBtn = document.getElementById('chat-send');
+            input.value = '';
+            input.focus();
+
+            const send = async () => {
+                const msg = input.value.trim();
+                if (!msg) return;
+                input.value = '';
+                sendBtn.disabled = true;
+                appendChatMessage(messagesEl, 'user', msg);
+                const asstEl = appendChatMessage(messagesEl, 'assistant', '');
+
+                try {
+                    const resp = await fetch(`/api/chat/${id}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ message: msg }),
+                    });
+                    if (!resp.ok) throw new Error('chat send failed');
+                    const reader = resp.body.getReader();
+                    const decoder = new TextDecoder();
+                    let buffer = '';
+                    while (true) {
+                        const { value, done } = await reader.read();
+                        if (done) break;
+                        buffer += decoder.decode(value, { stream: true });
+                        let i;
+                        while ((i = buffer.indexOf('\n\n')) >= 0) {
+                            const raw = buffer.slice(0, i);
+                            buffer = buffer.slice(i + 2);
+                            const evt = parseSseEvent(raw);
+                            if (evt.event === 'done') continue;
+                            if (evt.event === 'error') {
+                                asstEl.textContent += '\n[error: ' + evt.data + ']';
+                                continue;
+                            }
+                            if (evt.data) {
+                                try {
+                                    const chunk = JSON.parse(evt.data);
+                                    asstEl.textContent += chunk;
+                                    asstEl.scrollIntoView({ block: 'end' });
+                                } catch {}
+                            }
+                        }
+                    }
+                } catch (e) {
+                    asstEl.textContent += '\n[failed]';
+                } finally {
+                    sendBtn.disabled = false;
+                    input.focus();
+                }
+            };
+            sendBtn.onclick = send;
+            input.onkeydown = (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+            };
+        }
+
+        function appendChatMessage(container, role, text) {
+            const el = document.createElement('div');
+            el.className = 'chat-msg ' + role;
+            el.textContent = text;
+            container.appendChild(el);
+            el.scrollIntoView({ block: 'end' });
+            return el;
+        }
+
+        function parseSseEvent(raw) {
+            const lines = raw.split('\n');
+            let event = 'message';
+            const dataLines = [];
+            for (const line of lines) {
+                if (line.startsWith('event:')) event = line.slice(6).trim();
+                else if (line.startsWith('data:')) dataLines.push(line.slice(5).replace(/^ /, ''));
+            }
+            return { event, data: dataLines.join('\n') };
+        }
+
+        function escapeHtml(s) {
+            return String(s).replace(/[&<>"']/g, c => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[c]));
+        }
+
+        // ---------- Load existing highlights on chapter open ----------
+        async function loadExistingHighlights() {
+            const r = await fetch(`/api/highlights/${BOOK_ID}/${CHAPTER_INDEX}`);
+            const data = await r.json();
+            const hls = data.highlights || [];
+            for (const h of hls) {
+                applyHighlight(h);
+            }
+            requestAnimationFrame(repositionTranslations);
+        }
+
+        function applyHighlight(h) {
+            const range = findRangeForText(bookContent, h.text, h.start_hint, h.end_hint);
+            if (!range) return;
+            const span = document.createElement('span');
+            span.className = h.kind === 'translate' ? 'hl-translate' : 'hl-chat';
+            span.dataset.id = String(h.id);
+            try {
+                span.appendChild(range.extractContents());
+                range.insertNode(span);
+                span.parentNode && span.parentNode.normalize && span.parentNode.normalize();
+            } catch (e) {
+                console.warn('Could not wrap highlight', h.id, e);
+                return;
+            }
+            if (h.kind === 'translate' && h.sentence_en) {
+                addTranslationOverlay(h.id, h.sentence_en, false);
+            }
+        }
+
+        function findRangeForText(rootEl, target, startHint, endHint) {
+            const flat = flattenTextNodes(rootEl);
+            const needle = (startHint || '') + target + (endHint || '');
+            let idx = (startHint || endHint) ? flat.flat.indexOf(needle) : -1;
+            if (idx >= 0) {
+                idx += (startHint || '').length;
+            } else {
+                idx = flat.flat.indexOf(target);
+                if (idx < 0) return null;
+            }
+            const startLoc = locateOffset(flat, idx);
+            const endLoc = locateOffset(flat, idx + target.length);
+            const r = document.createRange();
+            try {
+                r.setStart(startLoc.node, startLoc.offset);
+                r.setEnd(endLoc.node, endLoc.offset);
+            } catch {
+                return null;
+            }
+            return r;
+        }
+
+        function locateOffset(flat, globalOffset) {
+            // binary search
+            let lo = 0, hi = flat.nodes.length - 1;
+            while (lo < hi) {
+                const mid = (lo + hi + 1) >> 1;
+                if (flat.starts[mid] <= globalOffset) lo = mid;
+                else hi = mid - 1;
+            }
+            return { node: flat.nodes[lo], offset: globalOffset - flat.starts[lo] };
+        }
+
+        loadExistingHighlights();
     </script>
 </body>
 </html>
