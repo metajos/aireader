@@ -182,6 +182,31 @@ async def api_highlight_words(highlight_id: int):
     return {"words": words}
 
 
+@app.get("/api/highlights/{highlight_id}/verbs")
+async def api_highlight_verbs(highlight_id: int):
+    h = db.get_highlight(highlight_id)
+    if not h:
+        raise HTTPException(status_code=404, detail="highlight not found")
+    if h["kind"] != "translate":
+        raise HTTPException(status_code=400, detail="not a translate highlight")
+
+    tr = db.get_translation(highlight_id)
+    if not tr:
+        raise HTTPException(status_code=409, detail="translation not yet ready")
+
+    if tr.get("verbs") is not None:
+        return {"verbs": tr["verbs"]}
+
+    prompt, schema, system = cc.verbs_prompt(h["text"])
+    try:
+        result = await cc.call_json(prompt, schema, system)
+    except cc.ClaudeError as e:
+        raise HTTPException(status_code=502, detail=f"verb breakdown failed: {e}")
+    verbs = result.get("verbs", [])
+    db.save_verbs(highlight_id, verbs)
+    return {"verbs": verbs}
+
+
 @app.get("/api/highlights/{book_id}/{chapter_index}")
 async def api_list_highlights(book_id: str, chapter_index: int):
     return {"highlights": db.list_highlights(book_id, chapter_index)}

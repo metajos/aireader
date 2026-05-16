@@ -72,6 +72,10 @@ CREATE TABLE IF NOT EXISTS translation_cache (
 def init() -> None:
     with connect() as c:
         c.executescript(SCHEMA)
+        # Idempotent migrations for existing dbs
+        cols = {r["name"] for r in c.execute("PRAGMA table_info(translations)").fetchall()}
+        if "verbs_json" not in cols:
+            c.execute("ALTER TABLE translations ADD COLUMN verbs_json TEXT")
 
 
 @contextmanager
@@ -143,6 +147,8 @@ def get_translation(highlight_id: int) -> Optional[dict]:
         r = _row(c.execute("SELECT * FROM translations WHERE highlight_id = ?", (highlight_id,)).fetchone())
         if r and r.get("words_json"):
             r["words"] = json.loads(r["words_json"])
+        if r and r.get("verbs_json"):
+            r["verbs"] = json.loads(r["verbs_json"])
         return r
 
 
@@ -151,6 +157,14 @@ def save_words(highlight_id: int, words: list[dict]) -> None:
         c.execute(
             "UPDATE translations SET words_json = ? WHERE highlight_id = ?",
             (json.dumps(words, ensure_ascii=False), highlight_id),
+        )
+
+
+def save_verbs(highlight_id: int, verbs: list[dict]) -> None:
+    with connect() as c:
+        c.execute(
+            "UPDATE translations SET verbs_json = ? WHERE highlight_id = ?",
+            (json.dumps(verbs, ensure_ascii=False), highlight_id),
         )
 
 

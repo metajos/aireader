@@ -218,6 +218,23 @@ CHAT_SYSTEM = (
     "and wants to discuss it. Be concise and clear. Use French quotes where helpful."
 )
 
+VERBS_SYSTEM = (
+    "You identify every verb in a French sentence and produce full conjugation tables. "
+    "For each verb, return: the infinitive, an English gloss, the form_in_text (the bare "
+    "conjugated form as it appeared in the text, WITHOUT subject pronoun, but INCLUDING any "
+    "auxiliary for compound tenses, e.g. 'voudrais', 'a voulu'), and tense_in_text (a short "
+    "label like 'conditionnel présent, 1sg'). Then provide conjugations for six tenses: "
+    "present, passé composé, imparfait, futur simple, conditionnel présent, subjonctif présent. "
+    "Each conjugation array MUST have exactly 6 entries in this fixed order corresponding to "
+    "je, tu, il/elle, nous, vous, ils/elles. CRITICAL: each entry is the CONJUGATED FORM ONLY "
+    "— do NOT include the subject pronoun and do NOT include 'que' for the subjunctive. "
+    "Examples for vouloir: "
+    "present=['veux','veux','veut','voulons','voulez','veulent']; "
+    "passe_compose=['ai voulu','as voulu','a voulu','avons voulu','avez voulu','ont voulu']; "
+    "subjonctif=['veuille','veuilles','veuille','voulions','vouliez','veuillent']. "
+    "If the highlight contains no verbs, return an empty array. Respond strictly per the JSON schema."
+)
+
 
 def translate_sentence_prompt(sentence: str) -> tuple[str, dict, str]:
     schema = {
@@ -256,3 +273,50 @@ def word_by_word_prompt(sentence: str, translation: str) -> tuple[str, dict, str
     }
     prompt = f"FRENCH: {sentence}\nFULL TRANSLATION: {translation}"
     return prompt, schema, WORD_SYSTEM
+
+
+def verbs_prompt(sentence: str) -> tuple[str, dict, str]:
+    conj_array = {"type": "array", "items": {"type": "string"}}
+    schema = {
+        "type": "object",
+        "properties": {
+            "verbs": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "infinitive": {"type": "string"},
+                        "english": {"type": "string"},
+                        "form_in_text": {"type": "string"},
+                        "tense_in_text": {"type": "string"},
+                        "group": {"type": "string"},
+                        "conjugations": {
+                            "type": "object",
+                            "properties": {
+                                "present": conj_array,
+                                "passe_compose": conj_array,
+                                "imparfait": conj_array,
+                                "futur": conj_array,
+                                "conditionnel": conj_array,
+                                "subjonctif": conj_array,
+                            },
+                            "required": [
+                                "present", "passe_compose", "imparfait",
+                                "futur", "conditionnel", "subjonctif",
+                            ],
+                            "additionalProperties": False,
+                        },
+                    },
+                    "required": [
+                        "infinitive", "english", "form_in_text",
+                        "tense_in_text", "group", "conjugations",
+                    ],
+                    "additionalProperties": False,
+                },
+            }
+        },
+        "required": ["verbs"],
+        "additionalProperties": False,
+    }
+    prompt = f"FRENCH:\n{sentence}"
+    return prompt, schema, VERBS_SYSTEM

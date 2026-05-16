@@ -95,6 +95,32 @@
         .word-add.added { background: #d4edda; color: #155724; cursor: default; }
         .panel-loading { color: #888; font-style: italic; padding: 12px 0; }
 
+        /* Tabs */
+        .panel-tabs { display: flex; gap: 2px; padding: 4px 12px 0; border-bottom: 1px solid #f0f0f0; }
+        .panel-tab { background: transparent; border: none; padding: 8px 14px; cursor: pointer; font-size: 0.85em; color: #777; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+        .panel-tab:hover { color: #333; }
+        .panel-tab.active { color: #222; font-weight: 600; border-bottom-color: #f4b400; }
+        .tab-pane { display: none; }
+        .tab-pane.active { display: block; }
+
+        /* Verbs */
+        .verb-card { border: 1px solid #eee; border-radius: 6px; padding: 12px 14px; margin-bottom: 14px; background: #fdfdfd; }
+        .verb-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding-bottom: 6px; margin-bottom: 8px; border-bottom: 1px solid #f3f3f3; }
+        .verb-inf { font-size: 1.2em; font-weight: 600; font-family: Georgia, serif; color: #222; }
+        .verb-en { color: #666; font-size: 0.85em; text-align: right; }
+        .verb-meta { font-size: 0.75em; color: #888; margin-bottom: 10px; line-height: 1.45; }
+        .verb-meta .badge { background: rgba(255, 220, 0, 0.4); color: #5b4a00; padding: 1px 6px; border-radius: 3px; font-family: Georgia, serif; }
+        .verb-meta .group { color: #aaa; margin-left: 6px; }
+        .tense-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; font-size: 0.78em; line-height: 1.45; }
+        .tense-block .tense-label { font-size: 0.68em; text-transform: uppercase; letter-spacing: 0.08em; color: #999; margin-bottom: 4px; font-weight: 600; }
+        .tense-row { display: grid; grid-template-columns: 2.6em 1fr; gap: 4px; padding: 1px 3px; border-radius: 2px; }
+        .tense-row .pronoun { color: #bbb; }
+        .tense-row .form { color: #333; }
+        .tense-row.matched { background: rgba(255, 220, 0, 0.35); }
+        .tense-row.matched .pronoun { color: #8a7000; }
+        .tense-row.matched .form { color: #4a3a00; font-weight: 600; }
+        .verbs-empty { color: #888; font-style: italic; padding: 20px 4px; text-align: center; }
+
         /* Chat */
         .chat-messages { display: flex; flex-direction: column; gap: 10px; }
         .chat-msg { padding: 8px 12px; border-radius: 10px; max-width: 90%; font-size: 0.9em; line-height: 1.45; white-space: pre-wrap; word-wrap: break-word; }
@@ -458,18 +484,46 @@
             if (activeChatStream) { activeChatStream.close(); activeChatStream = null; }
         }
 
+        let verbsLoaded = {};  // id -> true once fetched
+
         async function renderTranslatePanel(id, sourceText) {
             panelTitle.textContent = 'Translation';
             chatInputArea.style.display = 'none';
+            delete verbsLoaded[id];  // fresh panel session — re-render on first verb tab click
             panelBody.innerHTML = `
-                <div class="panel-passage">${escapeHtml(sourceText)}</div>
-                <div class="panel-trans" id="panel-trans-en">…</div>
-                <div class="panel-context" id="panel-context" style="display:none;"></div>
-                <div class="panel-section-title">Word by word</div>
-                <div id="word-list" class="panel-loading">Loading…</div>
-                <button class="panel-delete" onclick="deleteHighlight(${id})">Delete highlight</button>
+                <div class="panel-tabs">
+                    <button class="panel-tab active" data-tab="translation">Translation</button>
+                    <button class="panel-tab" data-tab="verbs">Verbs</button>
+                </div>
+                <div class="tab-pane active" id="tab-translation" style="padding-top: 14px;">
+                    <div class="panel-passage">${escapeHtml(sourceText)}</div>
+                    <div class="panel-trans" id="panel-trans-en">…</div>
+                    <div class="panel-context" id="panel-context" style="display:none;"></div>
+                    <div class="panel-section-title">Word by word</div>
+                    <div id="word-list" class="panel-loading">Loading…</div>
+                    <button class="panel-delete" onclick="deleteHighlight(${id})">Delete highlight</button>
+                </div>
+                <div class="tab-pane" id="tab-verbs" style="padding-top: 14px;">
+                    <div class="panel-loading" id="verbs-placeholder">Loading verbs…</div>
+                </div>
             `;
-            // Get the translation + context (it should already be saved server-side)
+
+            // Tab switching
+            panelBody.querySelectorAll('.panel-tab').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const target = btn.dataset.tab;
+                    panelBody.querySelectorAll('.panel-tab').forEach(b =>
+                        b.classList.toggle('active', b === btn));
+                    panelBody.querySelectorAll('.tab-pane').forEach(p =>
+                        p.classList.toggle('active', p.id === 'tab-' + target));
+                    if (target === 'verbs' && !verbsLoaded[id]) {
+                        verbsLoaded[id] = true;
+                        loadVerbsPane(id, sourceText);
+                    }
+                });
+            });
+
+            // Translation tab content (fetch sentence/context, then word list)
             const resp = await fetch(`/api/highlights/${BOOK_ID}/${CHAPTER_INDEX}`);
             const data = await resp.json();
             const h = (data.highlights || []).find(x => String(x.id) === String(id));
@@ -481,8 +535,6 @@
                     cx.textContent = h.context_note;
                 }
             }
-
-            // Lazy word breakdown
             try {
                 const wresp = await fetch(`/api/highlights/${id}/words`);
                 if (!wresp.ok) throw new Error('words failed');
@@ -491,6 +543,97 @@
             } catch (e) {
                 document.getElementById('word-list').textContent = 'Word breakdown unavailable.';
             }
+        }
+
+        async function loadVerbsPane(id, sourceText) {
+            const pane = document.getElementById('tab-verbs');
+            try {
+                const r = await fetch(`/api/highlights/${id}/verbs`);
+                if (!r.ok) throw new Error('verbs failed');
+                const data = await r.json();
+                renderVerbsPane(pane, data.verbs || []);
+            } catch (e) {
+                pane.innerHTML = '<div class="verbs-empty">Verb breakdown unavailable.</div>';
+                verbsLoaded[id] = false;
+            }
+        }
+
+        const TENSE_LABELS = {
+            present: 'Présent',
+            passe_compose: 'Passé composé',
+            imparfait: 'Imparfait',
+            futur: 'Futur simple',
+            conditionnel: 'Conditionnel',
+            subjonctif: 'Subjonctif',
+        };
+        const TENSE_ORDER = ['present', 'passe_compose', 'imparfait', 'futur', 'conditionnel', 'subjonctif'];
+        const PRONOUNS = ['je', 'tu', 'il/elle', 'nous', 'vous', 'ils/elles'];
+
+        function renderVerbsPane(pane, verbs) {
+            if (!verbs.length) {
+                pane.innerHTML = '<div class="verbs-empty">No verbs in this highlight.</div>';
+                return;
+            }
+            pane.innerHTML = '';
+            verbs.forEach(v => {
+                const card = document.createElement('div');
+                card.className = 'verb-card';
+                card.appendChild(renderVerbCard(v));
+                pane.appendChild(card);
+            });
+        }
+
+        function renderVerbCard(v) {
+            const frag = document.createDocumentFragment();
+            const head = document.createElement('div');
+            head.className = 'verb-head';
+            head.innerHTML = `
+                <span class="verb-inf">${escapeHtml(v.infinitive || '')}</span>
+                <span class="verb-en">${escapeHtml(v.english || '')}</span>
+            `;
+            frag.appendChild(head);
+
+            const meta = document.createElement('div');
+            meta.className = 'verb-meta';
+            const formInText = v.form_in_text || '';
+            const tense = v.tense_in_text || '';
+            const grp = v.group || '';
+            meta.innerHTML = `
+                ${formInText ? `<span class="badge">${escapeHtml(formInText)}</span>` : ''}
+                ${tense ? ` <span>${escapeHtml(tense)}</span>` : ''}
+                ${grp ? `<span class="group">· ${escapeHtml(grp)}</span>` : ''}
+            `;
+            frag.appendChild(meta);
+
+            const grid = document.createElement('div');
+            grid.className = 'tense-grid';
+            const conj = v.conjugations || {};
+            const normForm = (formInText || '').trim().toLowerCase();
+            TENSE_ORDER.forEach(key => {
+                const forms = conj[key] || [];
+                const block = document.createElement('div');
+                block.className = 'tense-block';
+                const label = document.createElement('div');
+                label.className = 'tense-label';
+                label.textContent = TENSE_LABELS[key];
+                block.appendChild(label);
+                for (let i = 0; i < 6; i++) {
+                    const row = document.createElement('div');
+                    row.className = 'tense-row';
+                    const form = forms[i] || '';
+                    if (normForm && form.trim().toLowerCase() === normForm) {
+                        row.classList.add('matched');
+                    }
+                    row.innerHTML = `
+                        <span class="pronoun">${escapeHtml(PRONOUNS[i])}</span>
+                        <span class="form">${escapeHtml(form)}</span>
+                    `;
+                    block.appendChild(row);
+                }
+                grid.appendChild(block);
+            });
+            frag.appendChild(grid);
+            return frag;
         }
 
         function renderWordList(words, contextSentence) {
