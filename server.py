@@ -331,6 +331,96 @@ async def study_view(request: Request):
     return templates.TemplateResponse("study.html", {"request": request})
 
 
+# =====================================================================
+# Comprehension (per-chapter quiz)
+# =====================================================================
+
+VALID_DIFFICULTIES = ("debutant", "intermediaire", "avance")
+
+
+class ComprehensionReq(BaseModel):
+    book_id: str
+    chapter_index: int
+    difficulty: str
+    regenerate: bool = False
+
+
+@app.post("/api/comprehension")
+async def api_comprehension(payload: ComprehensionReq):
+    if payload.difficulty not in VALID_DIFFICULTIES:
+        raise HTTPException(status_code=400, detail="invalid difficulty")
+
+    book = load_book_cached(payload.book_id)
+    if not book:
+        raise HTTPException(status_code=404, detail="book not found")
+    if payload.chapter_index < 0 or payload.chapter_index >= len(book.spine):
+        raise HTTPException(status_code=404, detail="chapter not found")
+
+    if not payload.regenerate:
+        cached = db.get_comprehension(payload.book_id, payload.chapter_index, payload.difficulty)
+        if cached is not None:
+            return {"questions": cached, "cached": True}
+
+    chapter_text = book.spine[payload.chapter_index].text
+    if not chapter_text or len(chapter_text.strip()) < 80:
+        raise HTTPException(status_code=422, detail="chapter is too short for comprehension")
+
+    prompt, schema, system = cc.comprehension_prompt(chapter_text, payload.difficulty)
+    try:
+        result = await cc.call_json(prompt, schema, system)
+    except cc.ClaudeError as e:
+        raise HTTPException(status_code=502, detail=f"comprehension failed: {e}")
+    questions = result.get("questions", [])
+    db.save_comprehension(payload.book_id, payload.chapter_index, payload.difficulty, questions)
+    return {"questions": questions, "cached": False}
+
+
+@app.get("/api/comprehension/{book_id}/{chapter_index}")
+async def api_get_comprehension(book_id: str, chapter_index: int, difficulty: str):
+    if difficulty not in VALID_DIFFICULTIES:
+        raise HTTPException(status_code=400, detail="invalid difficulty")
+    qs = db.get_comprehension(book_id, chapter_index, difficulty)
+    if qs is None:
+        raise HTTPException(status_code=404, detail="no comprehension cached")
+    return {"questions": qs}
+
+
+class WordInContext(BaseModel):
+    word: str
+    sentence: str
+
+
+@app.post("/api/word-in-context")
+async def api_word_in_context(payload: WordInContext):
+    word = payload.word.strip()
+    sentence = payload.sentence.strip()
+    if not word:
+        raise HTTPException(status_code=400, detail="empty word")
+    prompt, schema, system = cc.word_in_context_prompt(word, sentence or word)
+    try:
+        result = await cc.call_json(prompt, schema, system)
+    except cc.ClaudeError as e:
+        raise HTTPException(status_code=502, detail=f"word translation failed: {e}")
+    return result
+
+
+class TranslateText(BaseModel):
+    text: str
+
+
+@app.post("/api/translate-text")
+async def api_translate_text(payload: TranslateText):
+    text = payload.text.strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="empty text")
+    prompt, schema, system = cc.translate_text_prompt(text)
+    try:
+        result = await cc.call_json(prompt, schema, system)
+    except cc.ClaudeError as e:
+        raise HTTPException(status_code=502, detail=f"translation failed: {e}")
+    return result
+
+
 if __name__ == "__main__":
     import uvicorn
     print("Starting server at http://127.0.0.1:8123")

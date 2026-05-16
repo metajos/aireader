@@ -66,6 +66,16 @@ CREATE TABLE IF NOT EXISTS translation_cache (
     response_json TEXT NOT NULL,
     created_at REAL NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS comprehension (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    book_id TEXT NOT NULL,
+    chapter_index INTEGER NOT NULL,
+    difficulty TEXT NOT NULL CHECK (difficulty IN ('debutant','intermediaire','avance')),
+    questions_json TEXT NOT NULL,
+    created_at REAL NOT NULL,
+    UNIQUE (book_id, chapter_index, difficulty)
+);
 """
 
 
@@ -278,6 +288,34 @@ def cache_get(prompt: str) -> Optional[dict]:
     with connect() as c:
         r = c.execute("SELECT response_json FROM translation_cache WHERE prompt_sha256 = ?", (key,)).fetchone()
         return json.loads(r["response_json"]) if r else None
+
+
+# ---------- Comprehension ----------
+
+def get_comprehension(book_id: str, chapter_index: int, difficulty: str) -> Optional[list]:
+    with connect() as c:
+        r = c.execute(
+            "SELECT questions_json FROM comprehension WHERE book_id = ? AND chapter_index = ? AND difficulty = ?",
+            (book_id, chapter_index, difficulty),
+        ).fetchone()
+        return json.loads(r["questions_json"]) if r else None
+
+
+def save_comprehension(book_id: str, chapter_index: int, difficulty: str, questions: list) -> None:
+    with connect() as c:
+        c.execute(
+            "INSERT OR REPLACE INTO comprehension (book_id, chapter_index, difficulty, questions_json, created_at) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (book_id, chapter_index, difficulty, json.dumps(questions, ensure_ascii=False), time.time()),
+        )
+
+
+def delete_comprehension(book_id: str, chapter_index: int, difficulty: str) -> None:
+    with connect() as c:
+        c.execute(
+            "DELETE FROM comprehension WHERE book_id = ? AND chapter_index = ? AND difficulty = ?",
+            (book_id, chapter_index, difficulty),
+        )
 
 
 def cache_put(prompt: str, response: Any) -> None:

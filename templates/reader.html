@@ -121,6 +121,54 @@
         .tense-row.matched .form { color: #4a3a00; font-weight: 600; }
         .verbs-empty { color: #888; font-style: italic; padding: 20px 4px; text-align: center; }
 
+        /* Comprehension panel */
+        #panel.wide { width: 460px; }
+        .comp-diff { display: flex; gap: 4px; margin-bottom: 10px; }
+        .comp-diff-btn { flex: 1; padding: 6px; border: 1px solid #ddd; background: #fff; border-radius: 6px; cursor: pointer; font-size: 0.78em; color: #555; }
+        .comp-diff-btn.active { background: #1a73e8; color: #fff; border-color: #1a73e8; }
+        .comp-diff-btn:hover:not(.active) { background: #f0f0f0; }
+        .comp-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 0.78em; color: #777; }
+        .comp-controls button { background: #fff; border: 1px solid #ddd; border-radius: 4px; padding: 4px 10px; cursor: pointer; font-size: 0.85em; }
+        .comp-controls button:hover { background: #f0f0f0; }
+        .comp-controls button:disabled { color: #aaa; cursor: default; }
+        .comp-q-meta { font-size: 0.72em; text-transform: uppercase; letter-spacing: 0.06em; color: #888; margin-bottom: 8px; font-weight: 600; }
+        .comp-q-text { font-family: Georgia, serif; font-size: 1.02em; line-height: 1.6; color: #222; margin-bottom: 14px; }
+        .comp-q-en { font-size: 0.8em; color: #666; line-height: 1.4; margin: -8px 0 14px; padding: 8px 10px; background: #f8f9fa; border-radius: 4px; }
+        .comp-options { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+        .comp-option { border: 1px solid #e6e6e6; border-radius: 6px; padding: 8px 12px; cursor: pointer; background: #fff; font-size: 0.92em; line-height: 1.4; transition: background 0.1s; }
+        .comp-option:hover { background: #f5f5f5; }
+        .comp-option.selected { border-color: #1a73e8; background: #e8f0fe; }
+        .comp-option.correct { border-color: #43a047; background: #e7f3e8; }
+        .comp-option.wrong { border-color: #e53935; background: #fdecea; }
+        .comp-input { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95em; font-family: Georgia, serif; box-sizing: border-box; }
+        .comp-input.correct { border-color: #43a047; background: #e7f3e8; }
+        .comp-input.wrong { border-color: #e53935; background: #fdecea; }
+        .comp-conj-meta { background: #f8f9fa; padding: 8px 10px; border-radius: 4px; font-size: 0.85em; color: #555; margin-bottom: 10px; }
+        .comp-conj-meta b { color: #222; }
+        .comp-actions { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+        .comp-btn { background: #212529; color: #fff; border: none; padding: 7px 14px; border-radius: 6px; cursor: pointer; font-size: 0.85em; }
+        .comp-btn.secondary { background: #fff; color: #1a73e8; border: 1px solid #1a73e8; }
+        .comp-btn:disabled { background: #c4c4c4; cursor: default; }
+        .comp-explain { margin-top: 12px; padding: 10px 12px; background: #fffbe6; border-left: 3px solid #f4b400; border-radius: 4px; font-size: 0.85em; line-height: 1.5; color: #333; }
+        .comp-pager { display: flex; gap: 5px; flex-wrap: wrap; padding-top: 14px; margin-top: 18px; border-top: 1px solid #eee; }
+        .comp-pip { width: 28px; height: 28px; border-radius: 6px; border: 1px solid #ddd; background: #fff; cursor: pointer; font-size: 0.78em; color: #555; display: inline-flex; align-items: center; justify-content: center; }
+        .comp-pip.active { border-color: #1a73e8; color: #1a73e8; font-weight: 600; }
+        .comp-pip.correct { background: #43a047; color: #fff; border-color: #43a047; }
+        .comp-pip.wrong { background: #e53935; color: #fff; border-color: #e53935; }
+        .comp-empty { padding: 30px 0; text-align: center; color: #888; }
+        .comp-loading { padding: 30px 0; text-align: center; color: #888; font-style: italic; }
+
+        /* Tappable French words inside questions */
+        .qword { cursor: pointer; }
+        .qword:hover { background: rgba(255, 230, 90, 0.5); border-radius: 2px; }
+        .qword.tapped { border-bottom: 1px dotted #999; }
+
+        /* Word-tap tooltip */
+        #qtip { position: absolute; z-index: 60; background: #212529; color: #fff; padding: 8px 12px; border-radius: 6px; font-size: 0.85em; line-height: 1.4; max-width: 280px; box-shadow: 0 4px 14px rgba(0,0,0,0.18); display: none; font-family: -apple-system, sans-serif; pointer-events: none; }
+        #qtip .qtip-word { font-weight: 600; color: #ffd54f; font-family: Georgia, serif; }
+        #qtip .qtip-trans { margin-top: 2px; }
+        #qtip .qtip-note { font-size: 0.78em; color: #bbb; margin-top: 4px; font-style: italic; }
+
         /* Chat */
         .chat-messages { display: flex; flex-direction: column; gap: 10px; }
         .chat-msg { padding: 8px 12px; border-radius: 10px; max-width: 90%; font-size: 0.9em; line-height: 1.45; white-space: pre-wrap; word-wrap: break-word; }
@@ -168,8 +216,12 @@
         <button class="tool-btn active" data-tool="read">Read</button>
         <button class="tool-btn" data-tool="translate">Translate</button>
         <button class="tool-btn" data-tool="chat">Chat</button>
+        <button id="quiz-btn" class="tool-btn" style="background: #f0f0f0;">Quiz</button>
         <a id="study-link" href="/study" target="_blank">Study →</a>
     </div>
+
+    <!-- Word-tap tooltip (positioned via JS) -->
+    <div id="qtip"></div>
 
     <!-- MAIN CONTENT -->
     <div id="main">
@@ -478,10 +530,12 @@
         }
         function closePanel() {
             panel.classList.remove('open');
+            panel.classList.remove('wide');
             chatInputArea.style.display = 'none';
             if (activeHighlight) activeHighlight.classList.remove('active');
             activeHighlight = null;
             if (activeChatStream) { activeChatStream.close(); activeChatStream = null; }
+            hideQtip();
         }
 
         let verbsLoaded = {};  // id -> true once fetched
@@ -853,6 +907,435 @@
         }
 
         loadExistingHighlights();
+
+        // ==================================================================
+        // Comprehension panel
+        // ==================================================================
+        const comp = {
+            difficulty: 'debutant',
+            questions: [],
+            current: 0,
+            answers: {},     // i -> {value, correct}
+            translated: {},  // i -> {question, options}
+            wordCache: {},   // "word|sentence" -> {translation, note}
+        };
+
+        document.getElementById('quiz-btn').addEventListener('click', openComprehensionPanel);
+
+        async function openComprehensionPanel() {
+            // Reset selection-related state from any open highlight panel
+            document.querySelectorAll('.hl-translate.active, .hl-chat.active')
+                .forEach(e => e.classList.remove('active'));
+            activeHighlight = null;
+            chatInputArea.style.display = 'none';
+
+            panelTitle.textContent = 'Comprehension';
+            panel.classList.add('open');
+            panel.classList.add('wide');
+
+            renderComprehensionShell();
+            await loadComprehension(comp.difficulty, false);
+        }
+
+        function renderComprehensionShell() {
+            const diffs = [
+                ['debutant', 'Débutant'],
+                ['intermediaire', 'Intermédiaire'],
+                ['avance', 'Avancé'],
+            ];
+            panelBody.innerHTML = `
+                <div class="comp-diff">
+                    ${diffs.map(([k, label]) =>
+                        `<button class="comp-diff-btn ${k === comp.difficulty ? 'active' : ''}" data-diff="${k}">${label}</button>`
+                    ).join('')}
+                </div>
+                <div class="comp-controls">
+                    <span id="comp-status"></span>
+                    <button id="comp-regen" title="Génère de nouvelles questions">↻ Nouvelles</button>
+                </div>
+                <div id="comp-question"></div>
+                <div class="comp-pager" id="comp-pager"></div>
+            `;
+            panelBody.querySelectorAll('.comp-diff-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    if (btn.dataset.diff === comp.difficulty) return;
+                    comp.difficulty = btn.dataset.diff;
+                    panelBody.querySelectorAll('.comp-diff-btn').forEach(b =>
+                        b.classList.toggle('active', b.dataset.diff === comp.difficulty));
+                    await loadComprehension(comp.difficulty, false);
+                });
+            });
+            document.getElementById('comp-regen').addEventListener('click', async () => {
+                await loadComprehension(comp.difficulty, true);
+            });
+        }
+
+        async function loadComprehension(difficulty, regenerate) {
+            const qWrap = document.getElementById('comp-question');
+            const pager = document.getElementById('comp-pager');
+            qWrap.innerHTML = '<div class="comp-loading">Génération des questions… (5-10 s)</div>';
+            pager.innerHTML = '';
+            document.getElementById('comp-status').textContent = '';
+            try {
+                const r = await fetch('/api/comprehension', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        book_id: BOOK_ID,
+                        chapter_index: CHAPTER_INDEX,
+                        difficulty,
+                        regenerate,
+                    }),
+                });
+                if (!r.ok) {
+                    const err = await r.text();
+                    throw new Error(err || r.statusText);
+                }
+                const data = await r.json();
+                comp.questions = data.questions || [];
+                comp.current = 0;
+                comp.answers = {};
+                comp.translated = {};
+                renderComprehension();
+            } catch (e) {
+                qWrap.innerHTML = `<div class="comp-empty">Échec : ${escapeHtml(e.message || 'erreur')}</div>`;
+            }
+        }
+
+        function renderComprehension() {
+            const pager = document.getElementById('comp-pager');
+            pager.innerHTML = '';
+            comp.questions.forEach((_, i) => {
+                const pip = document.createElement('button');
+                pip.className = 'comp-pip';
+                pip.textContent = String(i + 1);
+                if (i === comp.current) pip.classList.add('active');
+                const a = comp.answers[i];
+                if (a) pip.classList.add(a.correct ? 'correct' : 'wrong');
+                pip.addEventListener('click', () => { comp.current = i; renderComprehension(); });
+                pager.appendChild(pip);
+            });
+            renderQuestion();
+        }
+
+        const QTYPES = {
+            multiple_choice: 'Choix multiple',
+            fill_gap: 'Compléter le texte',
+            conjugate: 'Conjuguer le verbe',
+        };
+        const TENSE_FR = {
+            present: 'présent',
+            passe_compose: 'passé composé',
+            imparfait: 'imparfait',
+            futur: 'futur simple',
+            conditionnel: 'conditionnel présent',
+            subjonctif: 'subjonctif présent',
+        };
+
+        function renderQuestion() {
+            const qWrap = document.getElementById('comp-question');
+            if (!comp.questions.length) {
+                qWrap.innerHTML = '<div class="comp-empty">Aucune question.</div>';
+                return;
+            }
+            const i = comp.current;
+            const q = comp.questions[i];
+            document.getElementById('comp-status').textContent = `Q${i + 1} / ${comp.questions.length}`;
+
+            qWrap.innerHTML = `
+                <div class="comp-q-meta">${QTYPES[q.type] || q.type}</div>
+                <div class="comp-q-text" id="comp-qtext"></div>
+                <div id="comp-qtrans"></div>
+                <div id="comp-qbody"></div>
+                <div class="comp-actions">
+                    <button class="comp-btn" id="comp-check">Vérifier</button>
+                    <button class="comp-btn secondary" id="comp-trans">Traduire la question</button>
+                    <button class="comp-btn secondary" id="comp-next" style="margin-left:auto;">Suivant →</button>
+                </div>
+                <div id="comp-explain"></div>
+            `;
+            renderTokenized(document.getElementById('comp-qtext'), q.question_fr);
+            renderQuestionBody(q, i);
+
+            document.getElementById('comp-check').addEventListener('click', () => checkAnswer(i));
+            document.getElementById('comp-trans').addEventListener('click', () => toggleTranslate(i));
+            document.getElementById('comp-next').addEventListener('click', () => {
+                if (comp.current < comp.questions.length - 1) {
+                    comp.current += 1;
+                    renderComprehension();
+                }
+            });
+
+            if (comp.translated[i]) showTranslated(i);
+            const a = comp.answers[i];
+            if (a) restoreAnswerView(q, i, a);
+        }
+
+        function renderQuestionBody(q, i) {
+            const body = document.getElementById('comp-qbody');
+            body.innerHTML = '';
+            if (q.type === 'multiple_choice') {
+                const list = document.createElement('div');
+                list.className = 'comp-options';
+                (q.options_fr || []).forEach((opt, idx) => {
+                    const el = document.createElement('div');
+                    el.className = 'comp-option';
+                    el.dataset.idx = String(idx);
+                    renderTokenized(el, opt);
+                    el.addEventListener('click', (ev) => {
+                        // Don't select if user is clicking a qword (let tooltip handle it)
+                        if (ev.target.classList.contains('qword')) return;
+                        list.querySelectorAll('.comp-option').forEach(o => o.classList.remove('selected'));
+                        el.classList.add('selected');
+                    });
+                    list.appendChild(el);
+                });
+                body.appendChild(list);
+            } else if (q.type === 'fill_gap') {
+                const inp = document.createElement('input');
+                inp.className = 'comp-input';
+                inp.placeholder = 'Tapez la réponse…';
+                inp.id = 'comp-fillinput';
+                body.appendChild(inp);
+                inp.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') { e.preventDefault(); checkAnswer(i); }
+                });
+            } else if (q.type === 'conjugate') {
+                const meta = document.createElement('div');
+                meta.className = 'comp-conj-meta';
+                const tense = TENSE_FR[q.tense] || q.tense || '';
+                meta.innerHTML = `Infinitif: <b>${escapeHtml(q.infinitive || '')}</b>${tense ? ` · Temps: <b>${escapeHtml(tense)}</b>` : ''}`;
+                body.appendChild(meta);
+                const inp = document.createElement('input');
+                inp.className = 'comp-input';
+                inp.placeholder = 'Forme conjuguée…';
+                inp.id = 'comp-fillinput';
+                body.appendChild(inp);
+                inp.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') { e.preventDefault(); checkAnswer(i); }
+                });
+            }
+        }
+
+        function checkAnswer(i) {
+            const q = comp.questions[i];
+            let userAnswer = '';
+            let correct = false;
+            if (q.type === 'multiple_choice') {
+                const sel = document.querySelector('.comp-option.selected');
+                if (!sel) { toast('Sélectionnez une réponse'); return; }
+                userAnswer = (q.options_fr || [])[parseInt(sel.dataset.idx, 10)];
+                correct = (userAnswer || '').trim() === (q.answer || '').trim();
+            } else {
+                const inp = document.getElementById('comp-fillinput');
+                if (!inp || !inp.value.trim()) { toast('Entrez une réponse'); return; }
+                userAnswer = inp.value.trim();
+                correct = normalizeAnswer(userAnswer) === normalizeAnswer(q.answer || '');
+            }
+            comp.answers[i] = { value: userAnswer, correct };
+            applyAnswerStyling(q, i, correct, userAnswer);
+            renderExplanation(q, correct);
+            // Update pager pip
+            const pip = document.querySelector(`.comp-pip:nth-child(${i + 1})`);
+            if (pip) {
+                pip.classList.remove('correct', 'wrong');
+                pip.classList.add(correct ? 'correct' : 'wrong');
+            }
+        }
+
+        function normalizeAnswer(s) {
+            return String(s).toLowerCase().trim().replace(/^['']|['']$/g, '').replace(/\s+/g, ' ');
+        }
+
+        function applyAnswerStyling(q, i, correct, userAnswer) {
+            if (q.type === 'multiple_choice') {
+                document.querySelectorAll('.comp-option').forEach(el => {
+                    const idx = parseInt(el.dataset.idx, 10);
+                    const opt = (q.options_fr || [])[idx];
+                    el.classList.remove('selected', 'correct', 'wrong');
+                    if ((opt || '').trim() === (q.answer || '').trim()) el.classList.add('correct');
+                    else if ((opt || '').trim() === userAnswer.trim() && !correct) el.classList.add('wrong');
+                });
+            } else {
+                const inp = document.getElementById('comp-fillinput');
+                if (inp) {
+                    inp.classList.remove('correct', 'wrong');
+                    inp.classList.add(correct ? 'correct' : 'wrong');
+                }
+            }
+        }
+
+        function renderExplanation(q, correct) {
+            const ex = document.getElementById('comp-explain');
+            ex.innerHTML = '';
+            const div = document.createElement('div');
+            div.className = 'comp-explain';
+            const verdict = correct ? '✓ Correct' : `✗ Réponse: ${escapeHtml(q.answer || '')}`;
+            div.innerHTML = `<b>${verdict}</b>`;
+            if (q.explanation_fr) {
+                const p = document.createElement('div');
+                p.style.marginTop = '6px';
+                renderTokenized(p, q.explanation_fr);
+                div.appendChild(p);
+            }
+            ex.appendChild(div);
+        }
+
+        function restoreAnswerView(q, i, a) {
+            applyAnswerStyling(q, i, a.correct, a.value);
+            if (q.type !== 'multiple_choice') {
+                const inp = document.getElementById('comp-fillinput');
+                if (inp) inp.value = a.value;
+            } else {
+                document.querySelectorAll('.comp-option').forEach(el => {
+                    const idx = parseInt(el.dataset.idx, 10);
+                    const opt = (q.options_fr || [])[idx];
+                    if ((opt || '').trim() === a.value.trim()) el.classList.add('selected');
+                });
+            }
+            renderExplanation(q, a.correct);
+        }
+
+        async function toggleTranslate(i) {
+            const wrap = document.getElementById('comp-qtrans');
+            if (comp.translated[i]) {
+                // already shown — toggle off
+                delete comp.translated[i];
+                wrap.innerHTML = '';
+                return;
+            }
+            wrap.innerHTML = '<div class="comp-q-en">Traduction…</div>';
+            try {
+                const q = comp.questions[i];
+                const items = [q.question_fr, ...(q.options_fr || [])];
+                const translated = await Promise.all(items.map(t => translateText(t)));
+                comp.translated[i] = {
+                    question: translated[0],
+                    options: translated.slice(1),
+                };
+                showTranslated(i);
+            } catch (e) {
+                wrap.innerHTML = `<div class="comp-q-en">Échec de la traduction</div>`;
+            }
+        }
+
+        function showTranslated(i) {
+            const wrap = document.getElementById('comp-qtrans');
+            const t = comp.translated[i];
+            let html = `<div class="comp-q-en">${escapeHtml(t.question)}</div>`;
+            wrap.innerHTML = html;
+            // Annotate options with their EN translations
+            const opts = document.querySelectorAll('.comp-option');
+            opts.forEach((el, idx) => {
+                const en = (t.options || [])[idx];
+                const existing = el.querySelector('.comp-opt-en');
+                if (existing) existing.remove();
+                if (en) {
+                    const enEl = document.createElement('div');
+                    enEl.className = 'comp-opt-en';
+                    enEl.style.cssText = 'font-size: 0.75em; color: #888; margin-top: 4px; font-family: -apple-system, sans-serif;';
+                    enEl.textContent = en;
+                    el.appendChild(enEl);
+                }
+            });
+        }
+
+        async function translateText(text) {
+            const r = await fetch('/api/translate-text', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text }),
+            });
+            if (!r.ok) throw new Error('translate failed');
+            const data = await r.json();
+            return data.translation || '';
+        }
+
+        // ---------- Word tokenization + tappable words ----------
+
+        function renderTokenized(targetEl, sentence) {
+            targetEl.innerHTML = '';
+            const tokens = tokenize(sentence);
+            tokens.forEach(tok => {
+                if (tok.isWord) {
+                    const span = document.createElement('span');
+                    span.className = 'qword';
+                    span.textContent = tok.text;
+                    span.dataset.sentence = sentence;
+                    span.addEventListener('click', (ev) => {
+                        ev.stopPropagation();
+                        showQtip(tok.text, sentence, span);
+                    });
+                    targetEl.appendChild(span);
+                } else {
+                    targetEl.appendChild(document.createTextNode(tok.text));
+                }
+            });
+        }
+
+        function tokenize(s) {
+            // Split into French words (letters incl. accented) vs non-words (spaces, punctuation)
+            const re = /([A-Za-zÀ-ÖØ-öø-ÿœŒæÆ'’\-]+)|([^A-Za-zÀ-ÖØ-öø-ÿœŒæÆ'’\-]+)/g;
+            const out = [];
+            let m;
+            while ((m = re.exec(s)) !== null) {
+                if (m[1]) out.push({ text: m[1], isWord: true });
+                else out.push({ text: m[2], isWord: false });
+            }
+            return out;
+        }
+
+        const qtip = document.getElementById('qtip');
+
+        async function showQtip(word, sentence, anchorEl) {
+            // Position the tip just below the anchor
+            const rect = anchorEl.getBoundingClientRect();
+            qtip.style.left = Math.min(window.innerWidth - 300, rect.left + window.scrollX) + 'px';
+            qtip.style.top = (rect.bottom + window.scrollY + 6) + 'px';
+            qtip.innerHTML = `<div class="qtip-word">${escapeHtml(word)}</div><div class="qtip-trans">…</div>`;
+            qtip.style.display = 'block';
+            anchorEl.classList.add('tapped');
+
+            const cacheKey = `${word.toLowerCase()}|${sentence}`;
+            if (comp.wordCache[cacheKey]) {
+                fillQtip(word, comp.wordCache[cacheKey]);
+                return;
+            }
+            try {
+                const r = await fetch('/api/word-in-context', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ word, sentence }),
+                });
+                if (!r.ok) throw new Error('failed');
+                const data = await r.json();
+                comp.wordCache[cacheKey] = data;
+                fillQtip(word, data);
+            } catch (e) {
+                qtip.querySelector('.qtip-trans').textContent = '(failed)';
+            }
+        }
+
+        function fillQtip(word, data) {
+            qtip.innerHTML = `
+                <div class="qtip-word">${escapeHtml(word)}</div>
+                <div class="qtip-trans">${escapeHtml(data.translation || '')}</div>
+                ${data.note ? `<div class="qtip-note">${escapeHtml(data.note)}</div>` : ''}
+            `;
+        }
+
+        function hideQtip() {
+            qtip.style.display = 'none';
+        }
+
+        document.addEventListener('click', (ev) => {
+            if (qtip.style.display === 'block' && !ev.target.classList.contains('qword')) {
+                hideQtip();
+            }
+        });
+        document.addEventListener('keydown', (ev) => {
+            if (ev.key === 'Escape') hideQtip();
+        });
     </script>
 </body>
 </html>

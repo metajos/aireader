@@ -320,3 +320,91 @@ def verbs_prompt(sentence: str) -> tuple[str, dict, str]:
     }
     prompt = f"FRENCH:\n{sentence}"
     return prompt, schema, VERBS_SYSTEM
+
+
+# ---------- Comprehension ----------
+
+COMPREHENSION_SYSTEM = (
+    "You generate French-language comprehension exercises for a learner reading a French book. "
+    "Given the chapter text and a difficulty level, produce exactly 8 questions IN FRENCH about "
+    "the content, mixing three question types in roughly equal proportion: multiple_choice, "
+    "fill_gap, conjugate. "
+    "For multiple_choice: provide question_fr, exactly 4 options_fr, and `answer` set to the "
+    "EXACT TEXT of the correct option (must match one of options_fr exactly). "
+    "For fill_gap: question_fr contains a single blank rendered as '____' (four underscores). "
+    "`answer` is the missing word(s), lowercase, no surrounding punctuation. "
+    "For conjugate: question_fr is a brief instruction like 'Conjuguez VERBE à la TENSE, "
+    "1ère personne du singulier.', `infinitive` is the infinitive (e.g. 'vouloir'), `tense` "
+    "is one of present/passe_compose/imparfait/futur/conditionnel/subjonctif, and `answer` "
+    "is the bare conjugated form (no subject pronoun, no 'que'). "
+    "Always provide a short explanation_fr (1-2 sentences) of why the answer is correct. "
+    "Unused fields must be empty strings ('') or empty arrays — never null. "
+    "Difficulty scaling: debutant uses common vocabulary + simple tenses (present, passé composé) "
+    "and direct comprehension; intermediaire uses imparfait/futur/conditionnel and some inference; "
+    "avance uses subjonctif/literary phrasing and deeper analysis. "
+    "Respond strictly per the JSON schema."
+)
+
+
+def comprehension_prompt(chapter_text: str, difficulty: str) -> tuple[str, dict, str]:
+    if difficulty not in ("debutant", "intermediaire", "avance"):
+        raise ValueError("difficulty must be debutant|intermediaire|avance")
+    snippet = chapter_text[:8000]
+    question_schema = {
+        "type": "object",
+        "properties": {
+            "type": {"type": "string", "enum": ["multiple_choice", "fill_gap", "conjugate"]},
+            "question_fr": {"type": "string"},
+            "options_fr": {"type": "array", "items": {"type": "string"}},
+            "answer": {"type": "string"},
+            "blank_index": {"type": "integer"},
+            "infinitive": {"type": "string"},
+            "tense": {"type": "string"},
+            "explanation_fr": {"type": "string"},
+        },
+        "required": [
+            "type", "question_fr", "options_fr", "answer",
+            "blank_index", "infinitive", "tense", "explanation_fr",
+        ],
+        "additionalProperties": False,
+    }
+    schema = {
+        "type": "object",
+        "properties": {
+            "questions": {"type": "array", "items": question_schema},
+        },
+        "required": ["questions"],
+        "additionalProperties": False,
+    }
+    prompt = f"DIFFICULTY: {difficulty}\n\nCHAPTER TEXT:\n{snippet}"
+    return prompt, schema, COMPREHENSION_SYSTEM
+
+
+# ---------- Word-in-context (tooltip translation) ----------
+
+WORD_IN_CONTEXT_SYSTEM = (
+    "You translate a single French word using its surrounding sentence as disambiguation. "
+    "Return the English translation plus a short note (<= 8 words) about part of speech / "
+    "grammatical features. Respond strictly per the JSON schema."
+)
+
+
+def word_in_context_prompt(word: str, sentence: str) -> tuple[str, dict, str]:
+    schema = {
+        "type": "object",
+        "properties": {
+            "translation": {"type": "string"},
+            "note": {"type": "string"},
+        },
+        "required": ["translation", "note"],
+        "additionalProperties": False,
+    }
+    prompt = f"WORD: {word}\nSENTENCE: {sentence}"
+    return prompt, schema, WORD_IN_CONTEXT_SYSTEM
+
+
+# ---------- Sentence translate (reusable for "translate the question") ----------
+
+def translate_text_prompt(text: str) -> tuple[str, dict, str]:
+    """Alias for `translate_sentence_prompt` for clarity in the comprehension feature."""
+    return translate_sentence_prompt(text)
